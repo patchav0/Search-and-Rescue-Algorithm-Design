@@ -1,9 +1,18 @@
+%process maze image
+Maze = rgb2gray(maze1);
+Maze = imbinarize(Maze);
+dims=size(Maze);dims=dims(1:2);
+while(dims > 11)
+    dims=round(dims/sqrt(2));
+end
+Z=imresize(Maze,dims);
+
 imshow(Z)
 hold on;
-plot(1, 5, 'r*', 'MarkerSize', 5);
+plot(2, 3, 'r*', 'MarkerSize', 5);
 pause(.1)
 axis on;
-r = move(2,5, 1,5, Z)
+r = move(2,3, 2,2, Z)
 function r = move(p1, p2, p1o, p2o, map)
 
     %move right
