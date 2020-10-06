@@ -209,16 +209,20 @@ while(sum(imbinarize(find(nPaths == 0))) > nodeCount)
             nPaths(n, nRow) = cpath;
          end
          
-         nPaths
+
          
          
        
     end
-
+         nPaths
     
 end
 
+%% Make a graph from results
 
-
+G = graph(nPaths)
+plot(G,'EdgeLabel',G.Edges.Weight)
+figure
+imagesc(weightMaze)
 
 
