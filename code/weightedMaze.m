@@ -40,27 +40,7 @@ while(sum(imbinarize(find(nPaths == 0))) > nodeCount)
         %current path weight
         cpath = 0;
         %get coords of surroundings
-        U = 0; D = 0; L = 0; R = 0;
-        %up
-        if(cn(1) - 1 > 0)
-            U = cn;
-            U(1) = U(1) - 1;
-        end
-        %down 
-        if(cn(1) + 1 <= dims(1))
-            D = cn;
-            D(1) = D(1) + 1;
-        end
-        %left
-        if(cn(2) - 1 > 0)
-            L = cn;
-            L(2) = L(2) - 1;
-        end
-        %right
-        if(cn(2) + 1 <= dims(2))
-            R = cn;
-            R(2) = R(2) + 1;
-        end
+        [U, D, L, R] = lookAround(cn, dims);
         
         % make current node inaccesable
        % tempMaze(cn(1), cn(2)) = 0;
@@ -74,105 +54,22 @@ while(sum(imbinarize(find(nPaths == 0))) > nodeCount)
                     if(U(1) ~= 0 && tempMaze(U(1), U(2)) ~= 0)
                         cn = U;
                         %% update directions
-                        U = 0; D = 0; L = 0; R = 0;
-                        %up
-                        if(cn(1) - 1 > 0)
-                            U = cn;
-                            U(1) = U(1) - 1;
-                        end
-                        %down 
-                        if(cn(1) + 1 <= dims(1))
-                            D = cn;
-                            D(1) = D(1) + 1;
-                        end
-                        %left
-                        if(cn(2) - 1 > 0)
-                            L = cn;
-                            L(2) = L(2) - 1;
-                        end
-                        %right
-                        if(cn(2) + 1 <= dims(2))
-                            R = cn;
-                            R(2) = R(2) + 1;
-                        end
+                        [U, D, L, R] = lookAround(cn, dims);
                     end
                 case 2
                     if(D(1) ~= 0 && tempMaze(D(1), D(2)) ~= 0)
                         cn = D;
-
-                        U = 0; D = 0; L = 0; R = 0;
-                        %up
-                        if(cn(1) - 1 > 0)
-                            U = cn;
-                            U(1) = U(1) - 1;
-                        end
-                        %down 
-                        if(cn(1) + 1 <= dims(1))
-                            D = cn;
-                            D(1) = D(1) + 1;
-                        end
-                        %left
-                        if(cn(2) - 1 > 0)
-                            L = cn;
-                            L(2) = L(2) - 1;
-                        end
-                        %right
-                        if(cn(2) + 1 <= dims(2))
-                            R = cn;
-                            R(2) = R(2) + 1;
-                        end
+                        [U, D, L, R] = lookAround(cn, dims);
                     end
                 case 3
                     if(L(1) ~= 0 && tempMaze(L(1), L(2)) ~= 0)
                         cn = L;
-
-                        U = 0; D = 0; L = 0; R = 0;
-                        %up
-                        if(cn(1) - 1 > 0)
-                            U = cn;
-                            U(1) = U(1) - 1;
-                        end
-                        %down 
-                        if(cn(1) + 1 <= dims(1))
-                            D = cn;
-                            D(1) = D(1) + 1;
-                        end
-                        %left
-                        if(cn(2) - 1 > 0)
-                            L = cn;
-                            L(2) = L(2) - 1;
-                        end
-                        %right
-                        if(cn(2) + 1 <= dims(2))
-                            R = cn;
-                            R(2) = R(2) + 1;
-                        end
+                        [U, D, L, R] = lookAround(cn, dims);
                     end
                 otherwise
                     if(R(1) ~= 0 && tempMaze(R(1), R(2)) ~= 0)
                         cn = R;
-
-                        U = 0; D = 0; L = 0; R = 0;
-                        %up
-                        if(cn(1) - 1 > 0)
-                            U = cn;
-                            U(1) = U(1) - 1;
-                        end
-                        %down 
-                        if(cn(1) + 1 <= dims(1))
-                            D = cn;
-                            D(1) = D(1) + 1;
-                        end
-                        %left
-                        if(cn(2) - 1 > 0)
-                            L = cn;
-                            L(2) = L(2) - 1;
-                        end
-                        %right
-                        if(cn(2) + 1 <= dims(2))
-                            R = cn;
-                            R(2) = R(2) + 1;
-                        end
+                        [U, D, L, R] = lookAround(cn, dims);
                     end
             end
             
@@ -208,10 +105,6 @@ while(sum(imbinarize(find(nPaths == 0))) > nodeCount)
             nPaths(nRow, n) = cpath;
             nPaths(n, nRow) = cpath;
          end
-         
-
-         
-         
        
     end
          nPaths
@@ -224,5 +117,30 @@ G = graph(nPaths)
 plot(G,'EdgeLabel',G.Edges.Weight)
 figure
 imagesc(weightMaze)
+
+%% Function that finds coordinates of surrounding
+function [U, D, L, R] = lookAround(cn, dims)
+    U = 0; D = 0; L = 0; R = 0;
+    %up
+    if(cn(1) - 1 > 0)
+        U = cn;
+        U(1) = U(1) - 1;
+    end
+    %down 
+    if(cn(1) + 1 <= dims(1))
+        D = cn;
+        D(1) = D(1) + 1;
+    end
+    %left
+    if(cn(2) - 1 > 0)
+        L = cn;
+        L(2) = L(2) - 1;
+    end
+    %right
+    if(cn(2) + 1 <= dims(2))
+        R = cn;
+        R(2) = R(2) + 1;
+    end
+end
 
 
