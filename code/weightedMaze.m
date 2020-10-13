@@ -19,11 +19,16 @@ load('weightMaze.mat')
 % imagesc(M)
 % nodeVal = dims(1);
 
-% assume we know the coordinates of each node
+% find the size of the matrix
 dims = size(weightMaze);
 
-nodes = [2,6; 3,4; 5,2; 7,6; 8,3];
-nodeCount = 5;
+% find the nodes (this is assuming the nodes are the coordinates with the
+% highest value. this can be changed by changing nVal)
+nVal = max(dims);
+[r, c] = find(weightMaze == nVal);
+nodes = [r, c];
+nodeCount = size(nodes);
+nodeCount = nodeCount(1);
 
 % matrix to store pode paths
 nPaths = zeros(nodeCount);
@@ -105,10 +110,7 @@ while(sum(imbinarize(find(nPaths == 0))) > nodeCount)
             nPaths(nRow, n) = cpath;
             nPaths(n, nRow) = cpath;
          end
-       
-    end
-         nPaths
-    
+    end   
 end
 
 %% Make a graph from results
