@@ -1,17 +1,32 @@
+function solution = createGraph(A, start, goal, labelGraph) 
+%% Takes a maze matrix in the form of 1s and 0s, a starting point [a b], and ending point [c d]
+% and an optional flag labelGraph. If the flag is set to one, the graph will be labeled and the solution will
+% be returned in the form of a sequential list of coodinates from the start to finish.
+
+%if user does not specify labels don't label
+if nargin < 4
+labelGraph = 0;
+end
 [row col] = find(A == 1);
 dims = size(A);
 nodeList = row;
 nodeList = [nodeList, col];
-[L, W]  = size(nodeList);
-
-% make a list of labels coresponding to node number
-for cNode = 1:L
-    cnCoords = nodeList(cNode,:);
-    Labels(cNode) = "(" + cnCoords(1) + ", " + cnCoords(2) + ")";
+L = size(nodeList, 1);
+if(labelGraph)
+    Labels = strings(1, L);  
 end
 
-s = [];
-t = [];
+for cNode = 1:L
+    cnCoords = nodeList(cNode,:);
+    % make a list of labels coresponding to node number
+    if(labelGraph)
+        Labels(cNode) = "(" + cnCoords(1) + ", " + cnCoords(2) + ")";
+    end
+end
+
+s = zeros(1, dims(1)^2);
+t = zeros(1, dims(1)^2);
+nodeIdx = 1;
 
 for cNode = 1:L
     cnCoords = nodeList(cNode,:);
@@ -23,46 +38,55 @@ for cNode = 1:L
         neighborCoords = neighbors(i,:);
         if(neighborCoords(1) ~= 0)
             % find the node number from the coordinates
-            key = "(" + neighborCoords(1) + ", " + neighborCoords(2) + ")";
-            neighbor = find(strcmp(Labels,key));
+            neighbor = find(ismember(nodeList, neighborCoords,'rows'));
 
             %% Check neighbor
             isNode = sum(ismember(nodeList,neighborCoords,'rows'));
-
             if(isNode) 
-                s = [s, cNode];
-                t = [t, neighbor]; 
+                s(nodeIdx) = cNode;
+                t(nodeIdx) = neighbor; 
+                nodeIdx = nodeIdx + 1;
             end
 
         end
     end    
 end
 
+s = s(1:nodeIdx - 1);
+t = t(1:nodeIdx - 1);
 G = graph(s,t);
 G = simplify(G);
+figure
 P = plot(G)
-labelnode(P,[1:196],Labels);
+if(labelGraph)
+    labelnode(P,[1:size(Labels,2)],Labels);
+end
 figure
 imagesc(A);
 
-
-start = [1 3];
-key = "(" + start(1) + ", " + start(2) + ")";
-start = find(strcmp(Labels,key));
-
-goal = [19 17];
-key = "(" + goal(1) + ", " + goal(2) + ")";
-goal = find(strcmp(Labels,key));
+start = find(ismember(nodeList, start,'rows'));
+goal = find(ismember(nodeList, goal,'rows'));
 
 steps = [];
-
+F = double(A);
 path = shortestpath(G,start, goal);
-for step = 1:size(path,2)
-   steps = [steps;Labels(path(step))];
+if(labelGraph)
+         steps = strings(1, size(path,2));
 end
-
-
-
+for step = 1:size(path,2)
+     if(labelGraph)
+         steps(step) = Labels(path(step));
+     end
+    coord = nodeList(path(step),:);
+    F(coord(1),coord(2)) = 3;
+end
+figure
+imagesc(F)
+solution = F;
+if(labelGraph)
+    solution = steps;
+end
+end
 
 %% Function that finds coordinates of surrounding
 function [U, D, L, R] = lookAround(cn, dims)
@@ -88,12 +112,3 @@ function [U, D, L, R] = lookAround(cn, dims)
         R(2) = R(2) + 1;
     end
 end
-
-% %% Function that gets the label of the node
-% function label = getLabel(nodeNum, Labels)
-%     
-%     key = "(" + start(1) + ", " + start(2) + ")";
-%     start = find(strcmp(Labels,key));
-% 
-% end
-
