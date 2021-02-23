@@ -1,4 +1,4 @@
-function [M] = randomMaze(n,animate,dt)
+function [M] = randomMaze(n,animate,dt,filename)
 % Construct a random maze using depth-first search.
 % http://rosettacode.org/wiki/Maze_generation#MATLAB_.2F_Octave
 
@@ -35,6 +35,8 @@ M(currentCell) = VISITED;
 
 % list of VISITED cells that have NotVISITED neighbors
 S = currentCell;
+
+ind = 1;
 
 % loop until all cells are VISITED
 while ~isempty(S)
@@ -77,6 +79,20 @@ while ~isempty(S)
     % update the animation
     if animate
         drawMaze(M);
+        
+        % save animation as a gif
+        if nargin == 4
+            frame = getframe(gcf);
+            im = frame2im(frame);
+            [A,map] = rgb2ind(im,256);
+            if ind == 1
+                imwrite(A,map,filename,'gif','LoopCount',Inf,'DelayTime',dt);
+            else
+                imwrite(A,map,filename,'gif','WriteMode','append','DelayTime',dt);
+            end
+        end
+        ind = ind+1;
+        
         pause(dt);
     end
 end
