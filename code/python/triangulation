@@ -1,36 +1,96 @@
-# References
-# https://opencv-python-tutroals.readthedocs.io/en/latest/py_tutorials/py_feature2d/py_shi_tomasi/py_shi_tomasi.html
+#Edit on Dr. Van Scoy's main file for the environment generater
+#constructs a triangulation on the polygon world and forms a graph of the paths
 
-import numpy as np 
+import matplotlib.pyplot as plt
+import descartes
 import cv2 
+import numpy as np 
 import triangle as tr
-from matplotlib import pyplot as plt 
 
-# read the image 
-img = cv2.imread('Polygons.JPG') 
-plt.imshow(img)
+from environment import scenario
+from simulation import plot_endpoints
 
-# convert image to gray scale image 
-gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) 
 
-## NEED TO AUTOMATE NUMBER OF CORNERS
-# detect corners with the goodFeaturesToTrack function. 
-corners = cv2.goodFeaturesToTrack(gray, 22, 0.01, 10) 
-corners = np.int0(corners) 
-
-# iterate through corners and plot them
-for i in corners: 
- 	x, y = i.ravel() 
- 	cv2.circle(img, (x, y), 3, 255, -1) 
+if __name__ == '__main__':
     
-
-plt.imshow(img)
-
-corners = corners.reshape(22,2)
+    xlen = 100
+    ylen = 50
+    size = (ylen,xlen)
     
-holes = np.array([[90, 50], [180, 60], [150, 130], [110, 190], [180, 190]])
-segments = np.array([[8, 1], [1, 14], [14, 20], [20, 8], [3, 0], [0, 15], [15, 3], [4, 18], [4, 21], [18, 21], [17, 10], [10, 16], [16, 19], [19, 17], [7, 5], [5, 12], [12, 13], [13, 7], [9, 6], [6, 2], [2, 11], [11, 9]])
+    ###########################################################################
+    # POLYGON WORLD
+    ###########################################################################
+    polygons, start, goal = scenario('polyworld', size)
+    
+    fig, ax = plt.subplots(1, 1)
+    
+    for poly in polygons:
+        ax.add_patch(descartes.PolygonPatch(poly, fc='blue', alpha=0.5))
+    
+    plot_endpoints(ax, start, goal)
+    
+    fig.set_facecolor('white')
+    fig.set_edgecolor('white')
+    plt.axis('off')
+    # plt.savefig('polyworld.pdf', bbox_inches='tight', pad_inches=0, dpi=600, facecolor='white', edgecolor='white')
+    plt.show()
+    
+fig.savefig('plot.png')
+img = cv2.imread('plot.png') 
 
+
+holes = np.empty((len(polygons),2), dtype=int)
+corners = np.empty((100,2), dtype=int)
+f = 0;
+for k in range(len(polygons)):
+    # store holes in array
+    point = polygons[k].centroid
+    holes[k] = [point.x, point.y]
+      
+    # add each verticy in an array
+    vertices = list(polygons[k].exterior.coords)
+    vertices = np.array(tuple(tuple(map(int, x)) for x in vertices))
+    for j in range(len(vertices)-1):
+        c = vertices[j];
+        corners[f] = c
+        f += 1
+  
+# add corners of environment boundaries
+corners[f] = [0, 0]
+f += 1
+corners[f] = [xlen, 0]
+f += 1
+corners[f] = [xlen, ylen]
+f += 1
+corners[f] = [0, ylen]
+f += 1
+         
+corners = corners[0:f,:]
+
+# store segments in array
+segments = np.empty((100,2), dtype=int)
+g = 0
+for h in range(len(polygons)):
+    vertices = list(polygons[h].exterior.coords)
+    vertices = np.array(tuple(tuple(map(int, x)) for x in vertices))
+    for n in range(len(vertices)-1):
+        c = [vertices[n][0],vertices[n][1]]
+        c2 = [vertices[n+1][0],vertices[n+1][1]]
+        ind1 = corners.tolist().index(c)
+        ind2 = corners.tolist().index(c2)
+        segments[g] = [ind1, ind2]
+        g += 1
+        
+# add walls of environment
+segments[g] = [f-4, f-3]
+g += 1
+segments[g] = [f-3, f-2]
+g += 1
+segments[g] = [f-2, f-1]
+g += 1
+segments[g] = [f-1, f-4]
+g += 1
+segments = segments[0:g,:]
 
 # Create Dictionary  
 poly = {'holes': holes,
@@ -38,23 +98,60 @@ poly = {'holes': holes,
             'segments': segments} 
 
 t = tr.triangulate(poly, 'pc')
-tr.compare(plt, poly, t)
-plt.show()
+#tr.compare(plt, poly, t)
+#tr.plot(plt.axes(), **t)
+plt.xlim(0, 100)
+plt.ylim(0, 50)
+#plt.show()
 
 triList = t['triangles'];
+corners = t['vertices'];
 nodes = {}
+triGraph = {}
  
 # # find and plot centers of triangles
-for k in range(len(triList)):
+for q in range(len(triList)):
     # coordinate of the vertices  
-    vert1 = corners[triList[k][0]]
-    vert2 = corners[triList[k][1]]
-    vert3 = corners[triList[k][2]]
+    vert1 = corners[triList[q][0]]
+    vert2 = corners[triList[q][1]]
+    vert3 = corners[triList[q][2]]
     # calculate centroid  
     x = np.uint8((vert1[0] + vert2[0] + vert3[0]) / 3)
     y = np.uint8((vert1[1] + vert2[1] + vert3[1]) / 3)
-    cv2.circle(img, (x, y), 3, 0, -1) 
+    cv2.circle(img, (x, y), 1, [0,255,0], -1) 
     # store in a node dictionary
-    nodes[k] = [x, y]
-    
-plt.imshow(img)
+    nodes[q] = [x, y]
+    # if any of the previous nodes share 2 verticies
+    # add them to the dictionary
+for d in range(len(nodes)):
+    count = 0;        
+    vert1 = triList[d][0]
+    vert2 = triList[d][1]
+    vert3 = triList[d][2]
+    for b in range(len(nodes)):
+            verta = triList[b][0]
+            vertb = triList[b][1]
+            vertc = triList[b][2]
+            count = 0;
+            if np.any([verta == vert1, verta == vert2, verta == vert3]):
+                count += 1
+            if np.any([vertb == vert1, vertb == vert2, vertb == vert3]):
+                count += 1
+            if np.any([vertc == vert1, vertc == vert2, vertc == vert3]):
+                count += 1
+                
+            if count == 2:
+                if d in triGraph:
+                    triGraph[d] = [*triGraph[d], b]
+                else:
+                    triGraph[d] = [b];
+                    
+fig, ax = plt.subplots()
+ax.imshow(img, extent=[0, 100, 0, 50])                
+# # # draw lines between nodes of the graph
+for u in triGraph: 
+
+    ax.plot([nodes[u][0],nodes[triGraph[u][0]][0]],[nodes[u][1],nodes[triGraph[u][0]][1]], 'bo-')         
+
+plt.show()
+
