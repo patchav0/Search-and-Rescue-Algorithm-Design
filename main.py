@@ -1,10 +1,13 @@
 import networkx as nx
+import matplotlib.pyplot as plt
 
 
 class Maze:
     def __init__(self, file):
         self.file = file
         self.data = []
+        self.rows = 0
+        self.cols = 0
         self.create_maze_array()
         self.print_maze()
 
@@ -16,6 +19,9 @@ class Maze:
             items = line.split(" ")
             maze_array.append(items)
         self.data = maze_array
+        if len(maze_array) > 0:
+            self.rows = len(maze_array)
+            self.cols = len(maze_array[0])
 
     def print_maze(self):
         print("--------------------- Matrix --------------------")
@@ -42,8 +48,10 @@ class Maze:
 
 
 class Graph:
-    def __init__(self, maze_array, start, end):
-        self.maze_array = maze_array
+    def __init__(self, M, start, end):
+        self.rows = M.rows
+        self.cols = M.cols
+        self.maze_array = M.data
         self.weight = 1
         self.start_node = None
         self.end_node = None
@@ -132,6 +140,7 @@ class Algorithm:
             else:
                 print_string += str(self.graph.nodes[p_item.node]['pos']) + " --> "
         print(print_string[:-5])
+        self.drawing(paths=path)
 
     def get_children(self, item_node):
         res_nodes = []
@@ -141,12 +150,6 @@ class Algorithm:
                 res_nodes.append(Node(item_node, edge[0], self.graph.nodes[edge[0]]['pos']))
             if not edge[1] == item_node.node:
                 res_nodes.append(Node(item_node, edge[1], self.graph.nodes[edge[1]]['pos']))
-            # if edge[0] < item_node.node or edge[1] < item_node.node:
-            #     continue
-            # if edge[0] > item_node.node:
-            #     res_nodes.append(Node(item_node, edge[0], self.graph.nodes[edge[0]]['pos']))
-            # elif edge[1] > item_node.node:
-            #     res_nodes.append(Node(item_node, edge[1], self.graph.nodes[edge[1]]['pos']))
         return res_nodes
 
     def search(self):
@@ -186,7 +189,6 @@ class Algorithm:
                 # Child is on the visited list (search entire visited list)
                 if len([close_item for close_item in close_list if close_item == child]) > 0:
                     continue
-
                 # Create the f, g, and h values
                 child.g = current_node.g + self.G.weight
                 # select one child from eucledian distance
@@ -198,8 +200,41 @@ class Algorithm:
                     continue
                 open_list.append(child)
 
+    def drawing(self, paths):
+        nodes = self.graph.nodes
+        edges = self.graph.edges
+        fig, ax = plt.subplots(1, 1)
+        plt.gca().invert_yaxis()
+        plt.axis('off')
+        path_points = []
+        for path in paths:
+            path_points.append(path.pos)
+        for node in nodes:
+            item = self.graph.nodes[node]
+            if item['data'] == '1':
+                plt.scatter(item['pos'][1], item['pos'][0], s=100, edgecolors='#000', facecolors='#fff')
+            else:
+                if item['pos'] in path_points:
+                    if item['pos'] == self.graph.nodes[self.start_node]['pos']:
+                        plt.scatter(item['pos'][1], item['pos'][0], s=100, edgecolors='#00f', facecolors='#00f')
+                    elif item['pos'] == self.graph.nodes[self.end_node]['pos']:
+                        plt.scatter(item['pos'][1], item['pos'][0], s=100, edgecolors='#0f0', facecolors='#0f0')
+                    else:
+                        plt.scatter(item['pos'][1], item['pos'][0], s=100, edgecolors='#f00', facecolors='#f00')
+                else:
+                    plt.scatter(item['pos'][1], item['pos'][0], s=100, edgecolors='#000', facecolors='#000')
+        for edge in edges:
+            point1 = self.graph.nodes[edge[0]]['pos']
+            point2 = self.graph.nodes[edge[1]]['pos']
+            if point1 in path_points and point2 in path_points:
+                plt.plot([point1[1], point2[1]], [point1[0], point2[0]], color='#f00')
+            else:
+                plt.plot([point1[1], point2[1]], [point1[0], point2[0]], color='#000')
+        fig.show()
+
 
 if __name__ == '__main__':
     M = Maze('input1.txt')
-    G = Graph(M.data, '3', '2')
+    G = Graph(M, '3', '2')
     A = Algorithm(G)
+    plt.show()
