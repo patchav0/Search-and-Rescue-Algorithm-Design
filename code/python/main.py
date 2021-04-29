@@ -14,6 +14,7 @@ import networkx as nx
 from environment import scenario
 from simulation import plot_endpoints
 from shapely.ops import unary_union
+from shapely.geometry import LineString
 
 class Node:
     def __init__(self, parent=None, node=None, pos=None):
@@ -28,21 +29,20 @@ class Node:
         return self.pos == other.pos
 
 
-class AStarAlgorithm:
+class WeightedAStarAlgorithm:
     def __init__(self, graph, positions):
         self.graph = graph
         self.positions = positions
         self.start_node = len(graph.nodes) - 2
         self.end_node = len(graph.nodes) - 1
-        self.weight = 1
         self.path = []
+        # self.display()
         self.search()
 
     def display(self):
         print(self.graph.nodes)
         print(self.start_node)
         print(self.end_node)
-        print(self.graph.edges)
 
     def return_path(self, item_node):
         current = item_node
@@ -109,13 +109,66 @@ class AStarAlgorithm:
                 if len([close_item for close_item in close_list if close_item == child]) > 0:
                     continue
                 # Create the f, g, and h values
-                child.g = current_node.g + self.weight
+                child.g = current_node.g + self.graph.edges[current_node.node, child.node]['weight']
                 child.h = abs(child.pos[0] - end_node.pos[0]) + abs(child.pos[1] - end_node.pos[1])
                 child.f = child.g + child.h
                 # Child is already in the open_list and g cost is already lower
                 if len([i for i in open_list if child == i and child.g > i.g]) > 0:
                     continue
                 open_list.append(child)
+                
+class Maze:
+    def __init__(self, grid, size):
+        self.data = grid
+        self.rows = size[0]
+        self.cols = size[1]
+
+
+class Graph:
+    def __init__(self, M, start, end):
+        self.rows = M.rows
+        self.cols = M.cols
+        self.maze_array = M.data
+        self.weight = 1
+        self.start_node = None
+        self.end_node = None
+        self.graph = nx.Graph()
+        ####################
+        self.positions = {}
+        ####################
+        self.create_graph(start, end)
+
+    def create_graph(self, start, end):
+        graph = nx.Graph()
+        for r_index, row in enumerate(self.maze_array):
+            for c_index, col in enumerate(row):
+                item_index = r_index * len(row) + c_index
+                # add nodes to graph
+                graph.add_node(item_index, pos=(r_index, c_index), data=col)
+                ############################################
+                self.positions[item_index] = [r_index, c_index]
+                ###########################################
+                if col == start:
+                    self.start_node = item_index
+                if col == end:
+                    self.end_node = item_index
+                # add edges to graph
+                if col == '1':
+                    continue
+                if r_index == 1 and c_index == 0:
+                    continue
+                _up = r_index - 1
+                _left = c_index - 1
+                if _up > 0 and self.maze_array[_up][c_index] != '1':
+                    _up_index = _up * len(row) + c_index
+                    graph.add_edge(_up_index, item_index, weight=self.weight)
+                if _left > 0 and self.maze_array[r_index][_left] != '1':
+                    _left_index = r_index * len(row) + _left
+                    graph.add_edge(_left_index, item_index, weight=self.weight)
+        self.graph = graph
+        return graph
+
+
 
 class polyworldToGraph:
     def __init__(self, polygons, size, start, goal):
@@ -126,8 +179,15 @@ class polyworldToGraph:
         self.goal = list(goal)
         self.nodes = {}
         self.graph = self.createGraph()
-        
+    
+       
     def createGraph(self):
+        
+        def checkCollision(A, B, C, D):
+            line1 = LineString([A,B])
+            line2 = LineString([C,D])
+            return line1.crosses(line2)
+            
 
         G = nx.Graph()
         holes = np.empty((len(polygons),2), dtype=int)
@@ -188,11 +248,6 @@ class polyworldToGraph:
                 'vertices': corners,
                 'segments': segments} 
         t = tr.triangulate(poly, 'pc')
-        #plt.axis('on')
-        #tr.plot(plt.axes(), **t)
-
-        #plt.xlim(0, self.xlen)
-        #plt.ylim(0, self.ylen)
         
         triList = t['triangles'];
         corners = t['vertices'];
@@ -250,26 +305,63 @@ class polyworldToGraph:
                         triGraph[d] = [b];
                         G.add_node(d)
                         
-        # add start and end points 
-        self.nodes[len(self.nodes)] = list(start)
-        self.nodes[len(self.nodes)] = list([goal[1],goal[0]])
-        triGraph[len(triGraph)] = [startNodeIndex]
-        G.add_node(startNodeIndex)
-        triGraph[len(triGraph)] = [goalNodeIndex]
-        G.add_node(goalNodeIndex)
-        
         fig, ax = plt.subplots(1, 1)
         # plot nodes and edges of graph              
         for u in triGraph:
             uCoords = self.nodes[u]
             for v in range(len(triGraph[u])):
                 vCoords = self.nodes[triGraph[u][v]]
-                plt.plot([self.nodes[u][0],self.nodes[triGraph[u][v]][0]],[self.nodes[u][1],self.nodes[triGraph[u][v]][1]], 'ko-') 
-                wt = np.linalg.norm(np.array(uCoords)-np.array(vCoords))
-                G.add_edge(triGraph[u][v], u, weight=wt)
+                #check each connection for collision
+                flag = 1
+                for i in range(len(segments)):
+                    
+                    aCoords = corners[segments[i][0]]
+                    bCoords = corners[segments[i][1]]
+                    collision = checkCollision(uCoords, vCoords, aCoords, bCoords) 
+                    if collision:
+                        flag = 0
+                        #find coordinates of closest vertice
+                        dist1 = np.linalg.norm(np.array(uCoords)-np.array(aCoords)) + np.linalg.norm(np.array(vCoords)-np.array(aCoords))
+                        dist2 = np.linalg.norm(np.array(uCoords)-np.array(bCoords)) + np.linalg.norm(np.array(vCoords)-np.array(bCoords))
+                        
+                        if (dist1 < dist2):
+                            closestVerticeCoords = aCoords
+                        else: 
+                            closestVerticeCoords = bCoords
+                             
+                # # plot and add edge 
+                if flag:
+                    plt.plot([self.nodes[u][0],self.nodes[triGraph[u][v]][0]],[self.nodes[u][1],self.nodes[triGraph[u][v]][1]], 'ko-') 
+                    wt = np.linalg.norm(np.array(uCoords)-np.array(vCoords))
+                    G.add_edge(triGraph[u][v], u, weight=wt)
+                  
+                # connect edges to closest vertice if collision occurs
+                else:
+                    # add node 
+                    self.nodes[len(self.nodes)] = list(closestVerticeCoords)
+                    G.add_node(len(self.nodes)-1)
+                    # plot and add edges
+                    plt.plot([self.nodes[u][0],closestVerticeCoords[0]],[self.nodes[u][1], closestVerticeCoords[1]], 'ko-')
+                    wt = np.linalg.norm(np.array(uCoords)-np.array(closestVerticeCoords))
+                    G.add_edge(u, len(self.nodes)-1, weight=wt)
+                    plt.plot([self.nodes[triGraph[u][v]][0],closestVerticeCoords[0]],[self.nodes[triGraph[u][v]][1], closestVerticeCoords[1]], 'ko-')
+                    wt = np.linalg.norm(np.array(vCoords)-np.array(closestVerticeCoords))
+                    G.add_edge(len(self.nodes)-1,triGraph[u][v],  weight=wt)
+                               
+        # add start and end points 
+        self.nodes[len(self.nodes)] = list(start)
+        self.nodes[len(self.nodes)] = list([goal[1],goal[0]])
+        triGraph[len(triGraph)] = [startNodeIndex]
+        G.add_node(len(triGraph)-1)
+        triGraph[len(triGraph)] = [goalNodeIndex]
+        G.add_node(len(triGraph)-1)
+        G.add_edge(startNodeIndex, len(self.nodes)-2, weight=sVal)
+        G.add_edge(goalNodeIndex, len(self.nodes)-1, weight=gVal)
+
+        
                 
         #Run A* and plot path
-        A = AStarAlgorithm(G, self.nodes)
+        A = WeightedAStarAlgorithm(G, self.nodes)
         path = A.path
         for i in range(len(path)-1):
             node1 = A.path[i].node
@@ -286,6 +378,7 @@ class polyworldToGraph:
         
         return G
     
+    
                 
 if __name__ == '__main__':
     
@@ -301,10 +394,15 @@ if __name__ == '__main__':
     plt.imshow(grid, cmap='Greys', origin='lower')
     
     plot_endpoints(ax, start, goal)
+    grid[start] = 3
+    grid[goal] = 2
     
     plt.axis('off')
     # plt.savefig('maze.pdf', bbox_inches='tight', pad_inches=0, dpi=600)
     #plt.show()
+    MG = Graph(Maze(grid, size), '3', '2')
+    #AStarAlgorithm(MG.graph, MG.positions)
+
     
     
     ###########################################################################
@@ -329,13 +427,6 @@ if __name__ == '__main__':
     
     # CREATE GRAPH AND APPLY A*
     polyGraph = polyworldToGraph(polygons, size, start, goal)
-    A = AStarAlgorithm(polyGraph.graph, polyGraph.nodes)
-
-    # path = A.path
-    # for i in range(len(path)-1):
-    #     node1 = A.path[i].node
-    #     node2 = A.path[i+1].node
-    #     plt.plot([A.positions[node1][0],A.positions[node2][0]],[A.positions[node1][1],A.positions[node2][1]], 'yo-')
     
     ###########################################################################
     # TERRAIN
